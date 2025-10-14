@@ -31,7 +31,8 @@ def copy_remapped_content(filepath_src, filepath_dst, mapper):
         with open(filepath_src, "r", encoding=ENCODING_DEFAULT) as input_file:
             for line in input_file:
                 for lhv, rhv in mapper.items():
-                    line = line.replace(lhv, rhv)
+                    regex_replace = re.compile(re.escape(lhv), re.IGNORECASE)
+                    line = regex_replace.sub(rhv, line)
                 output_file.write(line)
 
 
