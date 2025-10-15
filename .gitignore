@@ -1,3 +1,5 @@
 .venv
 rasa_assistant
 tmp
+
+index.pkl
