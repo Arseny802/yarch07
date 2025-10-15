@@ -1,0 +1,92 @@
+@startuml
+skinparam packageStyle rectangle
+skinparam package {
+  BackgroundColor LightBlue
+  ArrowColor DarkBlue
+}
+
+skinparam class {
+  BackgroundColor LightYellow
+  ArrowColor DarkGreen
+}
+
+skinparam state {
+  BackgroundColor LightGreen
+  ArrowColor DarkRed
+}
+
+left to right direction
+
+' Источники данных
+package "Источники данных" {
+  class GitRepository {
+    + URL репозитория
+    + Документы
+  }
+}
+
+' Скрипт обработки
+package "Скрипт обновления" {
+  class UpdateScript {
+    + Клонирование репозитория
+    + Загрузка документов
+    + Обработка документов
+    + Создание эмбеддингов
+    + Обновление индекса
+  }
+}
+
+' Промежуточные данные
+package "Промежуточные данные" {
+  class Documents {
+    + Исходные документы
+  }
+  
+  class Chunks {
+    + Чанки документов
+  }
+  
+  class Embeddings {
+    + Векторные представления
+  }
+}
+
+' Хранилище
+package "Хранилище" {
+  class VectorDB {
+    + Векторный индекс
+  }
+  
+  class LogStorage {
+    + update.log
+    + index_update.log
+  }
+}
+
+' Оркестрация
+package "Оркестрация" {
+  class CronJob {
+    + Запуск каждые 6:00
+    + Мониторинг ошибок
+    + Повтор при ошибке
+  }
+}
+
+' Связи между компонентами
+GitRepository --> UpdateScript : Предоставляет документы
+UpdateScript --> Documents : Загружает
+Documents --> UpdateScript : Передаёт на обработку
+UpdateScript --> Chunks : Создаёт чанки
+Chunks --> UpdateScript : Передаёт на эмбеддинг
+UpdateScript --> Embeddings : Создаёт векторы
+Embeddings --> VectorDB : Сохраняет в индекс
+
+CronJob --> UpdateScript : Инициирует выполнение
+UpdateScript --> LogStorage : Записывает логи
+
+' Стилизация
+skinparam linetype ortho
+skinparam arrowThickness 2
+skinparam packageStyle rectangle
+
+@enduml
