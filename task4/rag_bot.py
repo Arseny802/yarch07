@@ -27,27 +27,34 @@ class RAGBot:
     FILE_COT_PROMPT = "cot_prompt.txt"
 
     DEFAULT_MAX_DOCUMENTS = 42
+    DEFAULT_VERBOSE = False
 
     def __init__(
         self,
         setup_dir: str = "",
         rag_max_results=DEFAULT_MAX_DOCUMENTS,
         temperature=0.1,
-        verbose=False,
+        faiss_storage: FAISS | None = None,
+        verbose=DEFAULT_VERBOSE,
     ):
         self.current_dir = setup_dir or os.path.dirname(os.path.abspath(__file__))
         self.faiss_db_dir = os.path.join(self.current_dir, self.DB_DIR_POSTFIX)
         self.rag_max_results = rag_max_results
 
-        self.vector_db = self._load_db()
+        self.vector_db = faiss_storage or self._load_db()
         self.ollama = self._connect_ollama(temperature)
         self.prompts = self._create_prompts()
-        self._logger = self._setup_logger(verbose)
+        self._logger = self._setup_logger(verbose=verbose)
 
     def search_documents(self, query: str) -> list[Document]:
         try:
-            results = self.vector_db.similarity_search(query, k=self.rag_max_results)
+            results = self.vector_db.similarity_search(
+                query, k=self.rag_max_results, fetch_k=25000
+            )
             self._logger.info(f"Found {len(results)} docs for question '{query}'.")
+            for doc in results:
+                self._logger.debug(f"Using document '{doc.metadata['source']}'.")
+
             return results
         except Exception as error:
             self._logger.error("Error on search_documents", error)
@@ -73,7 +80,7 @@ class RAGBot:
             )
 
         self._logger.debug(
-            f"Prepared {len(context_parts)} context parts for {len(context_parts)} docs."
+            f"Prepared {len(context_parts)} context parts for {len(documents)} docs."
         )
         return "\n".join(context_parts)
 
@@ -128,8 +135,6 @@ class RAGBot:
             model="llama3.1",
             temperature=temperature,
             num_predict=1024,
-            # base_url="http://localhost:11434",
-            # other params...
         )
 
     def _create_prompts(self) -> dict[Prompts, PromptTemplate]:
@@ -154,16 +159,29 @@ class RAGBot:
             self.Prompts.COT: cot_prompt,
         }
 
-    def _setup_logger(self, verbose):
-        logging.basicConfig(
-            filename=os.path.join(self.current_dir, "rag_bot.log"),
-            format="[%(asctime)s] [%(name)s] [%(levelname)s]: %(message)s",
-            level=logging.DEBUG if verbose else logging.INFO,
-            encoding="utf-8",
+    def _setup_logger(self, filename: str | None = None, verbose=DEFAULT_VERBOSE):
+        format_pattern = "[%(asctime)s] [%(name)s] [%(levelname)s]: %(message)s"
+        formatter = logging.Formatter(
+            fmt=format_pattern,
             datefmt="%d-%m-%YT%H:%M:%S",
         )
+
+        logging.basicConfig(
+            format=format_pattern,
+            level=logging.DEBUG if verbose else logging.INFO,
+            datefmt=formatter.datefmt,
+        )
         logging.getLogger("httpx").setLevel(logging.WARNING)
-        return logging.getLogger(__name__)
+
+        logger = logging.getLogger(__name__)
+        handler = logging.FileHandler(
+            filename=filename or os.path.join(self.current_dir, "rag_bot.log"),
+            encoding="utf-8",
+        )
+        handler.setFormatter(formatter)
+        logger.handlers = [handler]
+
+        return logger
 
 
 if __name__ == "__main__":

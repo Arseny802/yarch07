@@ -18,7 +18,7 @@ class KnowledgeBaseIndexer:
     DB_DIR_POSTFIX = "faiss_db/"
     STATS_FILENAME = "indexing_stats.json"
 
-    def __init__(self, setup_dir: str = ""):
+    def __init__(self, setup_dir: str | None = None):
         self.current_dir = setup_dir or os.path.dirname(os.path.abspath(__file__))
         self.faiss_db_dir = os.path.join(self.current_dir, self.DB_DIR_POSTFIX)
         self.stats_file = os.path.join(self.current_dir, self.STATS_FILENAME)
@@ -37,7 +37,9 @@ class KnowledgeBaseIndexer:
         self.documents = list[Document]()
         self.chunks = list[Document]()
 
-    def load_documents(self, knowledge_base_path: str):
+    def load_documents(
+        self, knowledge_base_path: str, filter_short_chunks=True
+    ) -> list[Document]:
         for address, _, files in os.walk(knowledge_base_path):
             for filename in files:
                 file_path = os.path.join(address, filename)
@@ -64,20 +66,22 @@ class KnowledgeBaseIndexer:
             chunks = self.text_splitter.split_documents([doc])
             filtered_chunks = []
             for i, chunk in enumerate(chunks):
-                # Пропускаем чанки меньше 100 символов
-                if len(chunk.page_content.strip()) >= 100:
-                    chunk.metadata.update(
-                        {
-                            "chunk_id": f"{doc.metadata['filename']}_{i}",
-                            "chunk_index": i,
-                            "total_chunks": len(chunks),
-                        }
-                    )
-                    filtered_chunks.append(chunk)
+                if filter_short_chunks and len(chunk.page_content.strip()) < 100:
+                    continue
+
+                chunk.metadata.update(
+                    {
+                        "chunk_id": f"{doc.metadata['filename']}_{i}",
+                        "chunk_index": i,
+                        "total_chunks": len(chunks),
+                    }
+                )
+                filtered_chunks.append(chunk)
 
             self.chunks.extend(filtered_chunks)
 
         print(f"Loaded {len(self.documents)} docs with {len(self.chunks)} chunk")
+        return self.chunks
 
     def create_faiss_index(self) -> FAISS:
         start_time = time.time()
