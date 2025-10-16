@@ -3,6 +3,7 @@
 
 import argparse
 import os
+import time
 import logging
 from enum import Enum, auto
 
@@ -101,6 +102,7 @@ class RAGBot:
 
         return {
             "query": question,
+            "timestamp": int(time.time()),
             "prompt-type": prompt.value,
             "response": response,
             "context": context,
