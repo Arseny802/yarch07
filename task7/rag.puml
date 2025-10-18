@@ -1,0 +1,50 @@
+@startuml
+skinparam sequence {
+  participantBorderStyle rectangle
+  arrowThickness 2
+  lifelineStyle solid
+  backgroundColor LightYellow
+}
+
+participant "Пользователь" as U
+participant "RAG-бот" as R
+participant "Vector DB" as V
+participant "LLM" as L
+participant "Logger" as Log
+
+activate U
+U -> R : Отправляет запрос
+activate R
+
+alt Запрос валидный
+  R -> V : Поиск релевантных чанков
+  V --> R : Возвращает чанки
+  
+  group Обработка запроса
+    R -> L : Отправляет контекст
+    L --> R : Возвращает ответ
+  end
+  
+  R -> Log : Логирует успешный запрос
+  R --> U : Отправляет ответ
+  
+else Запрос не обработан
+  R --> Log : Логирует ошибку
+  R --> U : Сообщение об ошибке
+end
+
+deactivate U
+deactivate R
+deactivate V
+deactivate L
+deactivate Log
+
+note right
+Возможные точки сбоя:
+* Пустой результат от Vector DB
+* Ошибка генерации ответа LLM
+* Проблемы с валидацией чанков
+* Ошибка логирования
+end note
+
+@enduml

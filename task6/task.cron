@@ -1,0 +1,2 @@
+# /etc/crontab
+0 6 * * * root /usr/bin/python3 /path/to/update_index.py >> /var/log/index_update.log 2>&1
